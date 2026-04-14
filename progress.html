@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Progress Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0f0f;
+    --surface: #161818;
+    --surface2: #1e2020;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6e1;
+    --text-muted: #7a7870;
+    --text-dim: #4a4845;
+    --accent: #b5f0c0;
+    --accent-dim: rgba(181,240,192,0.12);
+    --accent-border: rgba(181,240,192,0.3);
+    --amber: #f0a050;
+    --red: #ff6b6b;
+    --blue: #60a5fa;
+    --purple: #a78bfa;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .header-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .header-icon svg { width: 18px; height: 18px; }
+  .header-title { font-size: 14px; font-weight: 500; flex: 1; }
+  .header-sub { font-size: 12px; color: var(--accent); }
+  .back-btn {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--text-muted);
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer; text-decoration: none;
+    transition: all 0.15s;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  /* Main content */
+  .main { padding: 20px; max-width: 680px; margin: 0 auto; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; margin-bottom: 20px; }
+  @media(max-width:480px){ .stats-row { grid-template-columns: repeat(2,1fr); } }
+  .stat-card { background: var(--surface2); border-radius: 10px; padding: 12px; }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stat-val { font-size: 20px; font-weight: 500; }
+  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .green { color: var(--accent); }
+  .amber { color: var(--amber); }
+  .red { color: var(--red); }
+
+  /* Chart */
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .chart-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .chart-tabs { display: flex; gap: 4px; }
+  .chart-tab {
+    font-family: var(--mono); font-size: 10px;
+    padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent; color: var(--text-muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .chart-tab.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+  .chart-wrap { height: 200px; position: relative; }
+
+  /* Check-in form */
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; font-family: var(--mono); }
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media(max-width:480px){ .form-grid { grid-template-columns: 1fr; } }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-label { font-size: 12px; color: var(--text-muted); }
+  .form-input {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .form-input:focus { border-color: var(--accent-border); }
+  .form-input::placeholder { color: var(--text-dim); }
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type=range] { flex: 1; }
+  .slider-val {
+    font-family: var(--mono); font-size: 13px;
+    font-weight: 500; min-width: 24px; text-align: center;
+    color: var(--accent);
+  }
+  .form-textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    resize: none;
+    width: 100%;
+    height: 70px;
+    transition: border-color 0.15s;
+  }
+  .form-textarea:focus { border-color: var(--accent-border); }
+  .form-textarea::placeholder { color: var(--text-dim); }
+  .save-btn {
+    width: 100%; margin-top: 14px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    border-radius: 10px;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-size: 14px; font-weight: 500;
+    padding: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .save-btn:hover { background: rgba(181,240,192,0.2); }
+  .save-msg { text-align: center; font-size: 12px; color: var(--accent); margin-top: 8px; height: 16px; font-family: var(--mono); }
+
+  /* History */
+  .history-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .history-header { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .history-row { padding: 12px 16px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 90px 70px 1fr; gap: 8px; align-items: center; }
+  .history-row:last-child { border-bottom: none; }
+  .history-date { font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+  .history-weight { font-size: 14px; font-weight: 500; }
+  .history-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 20px; border: 1px solid var(--border2); color: var(--text-muted); }
+  .chip.good { border-color: rgba(181,240,192,0.25); color: var(--accent); }
+  .chip.warn { border-color: rgba(240,160,80,0.25); color: var(--amber); }
+  .no-data { padding: 30px 16px; text-align: center; color: var(--text-dim); font-size: 13px; }
+  .delete-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; transition: color 0.15s; }
+  .delete-btn:hover { color: var(--red); }
+
+  /* Target line */
+  .target-info { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; }
+  .target-item { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .target-item span { color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#b5f0c0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+    </svg>
+  </div>
+  <div style="flex:1">
+    <div class="header-title">Progress tracker</div>
+    <div class="header-sub">Weekly check-ins & weight trend</div>
+  </div>
+  <a href="./" class="back-btn">My coach</a>
+</div>
+
+<div class="main">
+
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-label">Start weight</div><div class="stat-val" id="startWeight">—</div><div class="stat-sub">baseline</div></div>
+    <div class="stat-card"><div class="stat-label">Current</div><div class="stat-val" id="currentWeight">—</div><div class="stat-sub">latest entry</div></div>
+    <div class="stat-card"><div class="stat-label">Lost so far</div><div class="stat-val green" id="lostSoFar">—</div><div class="stat-sub">kg total</div></div>
+    <div class="stat-card"><div class="stat-label">Check-ins</div><div class="stat-val" id="checkInCount">0</div><div class="stat-sub">weeks logged</div></div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Weight trend</div>
+        <div class="target-info">
+          <div class="target-item">Start: <span>87.1 kg</span></div>
+          <div class="target-item">Target: <span>70–75 kg</span></div>
+          <div class="target-item">Rate: <span>0.5–0.7 kg/wk</span></div>
+        </div>
+      </div>
+      <div class="chart-tabs">
+        <button class="chart-tab active" onclick="switchChart('weight', this)">Weight</button>
+        <button class="chart-tab" onclick="switchChart('hunger', this)">Hunger</button>
+        <button class="chart-tab" onclick="switchChart('energy', this)">Energy</button>
+        <button class="chart-tab" onclick="switchChart('adherence', this)">Adherence</button>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="mainChart"></canvas>
+    </div>
+  </div>
+
+  <div class="section-title">Log this week</div>
+  <div class="form-card">
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="f-date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Weight (kg)</label>
+        <input type="number" step="0.1" class="form-input" id="f-weight" placeholder="e.g. 86.4">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Avg daily calories</label>
+        <input type="number" class="form-input" id="f-calories" placeholder="e.g. 1900">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Avg daily protein (g)</label>
+        <input type="number" class="form-input" id="f-protein" placeholder="e.g. 175">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Hunger level — <span id="hunger-label">5</span>/10</label>
+        <div class="slider-row">
+          <span style="font-size:11px;color:var(--text-dim)">Not hungry</span>
+          <input type="range" min="1" max="10" value="5" id="f-hunger" oninput="document.getElementById('hunger-label').textContent=this.value">
+          <span style="font-size:11px;color:var(--text-dim)">Very hungry</span>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Energy level — <span id="energy-label">5</span>/10</label>
+        <div class="slider-row">
+          <span style="font-size:11px;color:var(--text-dim)">Low</span>
+          <input type="range" min="1" max="10" value="5" id="f-energy" oninput="document.getElementById('energy-label').textContent=this.value">
+          <span style="font-size:11px;color:var(--text-dim)">High</span>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Adherence — <span id="adherence-label">80</span>%</label>
+        <div class="slider-row">
+          <span style="font-size:11px;color:var(--text-dim)">0%</span>
+          <input type="range" min="0" max="100" step="5" value="80" id="f-adherence" oninput="document.getElementById('adherence-label').textContent=this.value+'%'">
+          <span style="font-size:11px;color:var(--text-dim)">100%</span>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Training this week</label>
+        <input type="text" class="form-input" id="f-training" placeholder="e.g. 3x weights, 2x run, good energy">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Notes — what went well or badly?</label>
+        <textarea class="form-textarea" id="f-notes" placeholder="e.g. Struggled with hunger mid-week, training felt strong..."></textarea>
+      </div>
+    </div>
+    <button class="save-btn" onclick="saveEntry()">Save check-in</button>
+    <div class="save-msg" id="saveMsg"></div>
+  </div>
+
+  <div class="section-title">Check-in history</div>
+  <div class="history-card">
+    <div class="history-header">
+      <span style="font-size:13px;font-weight:500;">All entries</span>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text-dim)" id="entryCount">0 entries</span>
+    </div>
+    <div id="historyList"><div class="no-data">No check-ins yet — log your first week above.</div></div>
+  </div>
+
+</div>
+
+<script>
+const STORE_KEY = 'flc_progress';
+let chartInstance = null;
+let currentChartType = 'weight';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function saveData(data) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+function saveEntry() {
+  const weight = parseFloat(document.getElementById('f-weight').value);
+  const date = document.getElementById('f-date').value;
+  if (!date || isNaN(weight)) {
+    document.getElementById('saveMsg').textContent = 'Please enter a date and weight.';
+    document.getElementById('saveMsg').style.color = '#ff6b6b';
+    return;
+  }
+  const entry = {
+    id: Date.now(),
+    date,
+    weight,
+    calories: parseInt(document.getElementById('f-calories').value) || null,
+    protein: parseInt(document.getElementById('f-protein').value) || null,
+    hunger: parseInt(document.getElementById('f-hunger').value),
+    energy: parseInt(document.getElementById('f-energy').value),
+    adherence: parseInt(document.getElementById('f-adherence').value),
+    training: document.getElementById('f-training').value.trim() || null,
+    notes: document.getElementById('f-notes').value.trim() || null
+  };
+  const data = loadData();
+  data.push(entry);
+  data.sort((a, b) => new Date(a.date) - new Date(b.date));
+  saveData(data);
+  document.getElementById('saveMsg').textContent = 'Check-in saved!';
+  document.getElementById('saveMsg').style.color = '#b5f0c0';
+  setTimeout(() => document.getElementById('saveMsg').textContent = '', 3000);
+  resetForm();
+  render();
+}
+
+function resetForm() {
+  document.getElementById('f-date').value = '';
+  document.getElementById('f-weight').value = '';
+  document.getElementById('f-calories').value = '';
+  document.getElementById('f-protein').value = '';
+  document.getElementById('f-hunger').value = 5;
+  document.getElementById('f-energy').value = 5;
+  document.getElementById('f-adherence').value = 80;
+  document.getElementById('f-training').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('hunger-label').textContent = '5';
+  document.getElementById('energy-label').textContent = '5';
+  document.getElementById('adherence-label').textContent = '80%';
+}
+
+function deleteEntry(id) {
+  const data = loadData().filter(e => e.id !== id);
+  saveData(data);
+  render();
+}
+
+function switchChart(type, btn) {
+  document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  currentChartType = type;
+  renderChart(loadData());
+}
+
+function renderChart(data) {
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  if (data.length === 0) return;
+
+  const labels = data.map(e => formatDate(e.date));
+  let dataset, color, label, yMin, yMax;
+
+  if (currentChartType === 'weight') {
+    dataset = data.map(e => e.weight);
+    color = '#b5f0c0'; label = 'Weight (kg)';
+    const weights = dataset.filter(Boolean);
+    yMin = Math.floor(Math.min(...weights) - 1);
+    yMax = Math.ceil(Math.max(...weights) + 1);
+  } else if (currentChartType === 'hunger') {
+    dataset = data.map(e => e.hunger);
+    color = '#f0a050'; label = 'Hunger (1–10)';
+    yMin = 0; yMax = 10;
+  } else if (currentChartType === 'energy') {
+    dataset = data.map(e => e.energy);
+    color = '#60a5fa'; label = 'Energy (1–10)';
+    yMin = 0; yMax = 10;
+  } else {
+    dataset = data.map(e => e.adherence);
+    color = '#a78bfa'; label = 'Adherence (%)';
+    yMin = 0; yMax = 100;
+  }
+
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data: dataset,
+        borderColor: color,
+        backgroundColor: color + '18',
+        borderWidth: 2,
+        pointBackgroundColor: color,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1e2020',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          titleColor: '#e8e6e1',
+          bodyColor: '#7a7870',
+          padding: 10,
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              if (currentChartType === 'weight') return ` ${v} kg`;
+              if (currentChartType === 'adherence') return ` ${v}%`;
+              return ` ${v}/10`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: { color: '#4a4845', font: { family: 'DM Mono', size: 10 } }
+        },
+        y: {
+          min: yMin, max: yMax,
+          grid: { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color: '#4a4845',
+            font: { family: 'DM Mono', size: 10 },
+            callback: v => currentChartType === 'weight' ? v + ' kg' : currentChartType === 'adherence' ? v + '%' : v
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderStats(data) {
+  if (data.length === 0) return;
+  const weights = data.map(e => e.weight).filter(Boolean);
+  const start = weights[0];
+  const current = weights[weights.length - 1];
+  const lost = +(start - current).toFixed(1);
+
+  document.getElementById('startWeight').textContent = start + ' kg';
+  document.getElementById('currentWeight').textContent = current + ' kg';
+
+  const lostEl = document.getElementById('lostSoFar');
+  lostEl.textContent = (lost > 0 ? '-' : '+') + Math.abs(lost) + ' kg';
+  lostEl.className = 'stat-val ' + (lost > 0 ? 'green' : lost < 0 ? 'red' : '');
+  document.getElementById('checkInCount').textContent = data.length;
+}
+
+function renderHistory(data) {
+  const list = document.getElementById('historyList');
+  document.getElementById('entryCount').textContent = data.length + ' ' + (data.length === 1 ? 'entry' : 'entries');
+
+  if (data.length === 0) {
+    list.innerHTML = '<div class="no-data">No check-ins yet — log your first week above.</div>';
+    return;
+  }
+
+  const sorted = [...data].reverse();
+  list.innerHTML = sorted.map(e => {
+    const hungerClass = e.hunger <= 4 ? 'good' : e.hunger >= 8 ? 'warn' : '';
+    const energyClass = e.energy >= 7 ? 'good' : e.energy <= 3 ? 'warn' : '';
+    const adherenceClass = e.adherence >= 80 ? 'good' : e.adherence < 60 ? 'warn' : '';
+    return `
+      <div class="history-row">
+        <div>
+          <div class="history-date">${formatDate(e.date)}</div>
+          ${e.notes ? `<div style="font-size:11px;color:var(--text-dim);margin-top:3px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.notes}</div>` : ''}
+        </div>
+        <div class="history-weight">${e.weight} kg</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+          <div class="history-chips">
+            <span class="chip ${hungerClass}">H:${e.hunger}</span>
+            <span class="chip ${energyClass}">E:${e.energy}</span>
+            <span class="chip ${adherenceClass}">${e.adherence}%</span>
+            ${e.calories ? `<span class="chip">${e.calories}k</span>` : ''}
+          </div>
+          <button class="delete-btn" onclick="deleteEntry(${e.id})" title="Delete">×</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function render() {
+  const data = loadData();
+  renderStats(data);
+  renderChart(data);
+  renderHistory(data);
+}
+
+/* Set today's date as default */
+document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+
+render();
+</script>
+</body>
+</html>
